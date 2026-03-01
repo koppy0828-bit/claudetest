@@ -79,6 +79,11 @@ let bricks = [];
 let paddle = { x: W / 2 - PADDLE_W / 2, y: H - 40, w: PADDLE_W, h: PADDLE_H };
 let ball = { x: 0, y: 0, vx: 0, vy: 0, attached: true };
 let keys = {};
+let popups = []; // { x, y, text, color, life, maxLife }
+
+function spawnPopup(x, y, points, color) {
+  popups.push({ x, y, text: '+' + points, color, life: 50, maxLife: 50 });
+}
 
 function initBricks() {
   bricks = [];
@@ -111,6 +116,7 @@ function startGame() {
   score = 0;
   lives = 3;
   level = 1;
+  popups = [];
   initBricks();
   paddle.x = W / 2 - PADDLE_W / 2;
   resetBall();
@@ -120,6 +126,7 @@ function startGame() {
 
 function nextLevel() {
   level++;
+  popups = [];
   initBricks();
   resetBall();
   state = 'playing';
@@ -224,6 +231,10 @@ function update() {
     return;
   }
 
+  // ポップアップ更新
+  for (const p of popups) { p.life--; p.y -= 0.8; }
+  popups = popups.filter(p => p.life > 0);
+
   // ブロック衝突
   let bricksLeft = 0;
   for (const b of bricks) {
@@ -232,9 +243,13 @@ function update() {
       b.hp--;
       if (b.hp <= 0) {
         b.alive = false;
-        score += 10 * level;
+        const pts = 10 * level;
+        score += pts;
+        spawnPopup(b.x + b.w / 2, b.y + b.h / 2, pts, '#f4d35e');
       } else {
-        score += 2 * level;
+        const pts = 2 * level;
+        score += pts;
+        spawnPopup(b.x + b.w / 2, b.y + b.h / 2, pts, '#a8dadc');
         // HPに応じて色を暗くする
         b.color = shadeColor(COLORS[bricks.indexOf(b) % BRICK_ROWS], b.hp - (BRICK_ROWS - bricks.indexOf(b) % BRICK_ROWS));
       }
@@ -316,6 +331,21 @@ function draw() {
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
   ctx.fill();
+
+  // スコアポップアップ
+  for (const p of popups) {
+    const alpha = p.life / p.maxLife;
+    const scale = 0.7 + 0.3 * (1 - alpha);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = `bold ${Math.round(14 * (1 + (1 - alpha) * 0.5))}px Arial`;
+    ctx.fillStyle = p.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.text, p.x, p.y);
+    ctx.restore();
+  }
+  ctx.textBaseline = 'alphabetic';
 
   // 待機時のヒント
   if (state === 'playing' && ball.attached) {
